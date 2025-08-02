@@ -2,3 +2,6 @@
 __pycache__/*
 imagenes-icono.ico
 test.txt
+
+# uv
+.venv/

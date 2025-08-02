@@ -43,23 +43,54 @@ Then the script starts to work, and when it finished, the Excel file would appea
 
 ## How to run the script in Python
 
-If you want to customize the script or just launch it with Python, you can follow this steps:
+If you want to customize the script or just launch it with Python, you can follow these steps:
+
+### Using uv (Recommended)
+
+This project now uses [uv](https://docs.astral.sh/uv/) for fast and reliable package management.
+
+First, install uv if you haven't already:
+```bash
+# On macOS and Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# On Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Or with pip
+pip install uv
+```
+
+Then, run the project:
+```bash
+# Install dependencies and run the main script
+uv run python main_datos_maps.py
+
+# Or activate the virtual environment and run
+uv sync
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+python main_datos_maps.py
+```
+
+### Traditional method (Alternative)
+
+If you prefer to use the traditional Python virtual environment approach:
 
 First create a virtual environment and activate it:
 
 Windows:
 ```bash
-virtualenv env
+python -m venv env
 .\env\Scripts\activate
 ```
 
-Ubuntu:
+Ubuntu/macOS:
 ```bash
 python3 -m venv env
 source env/bin/activate
 ```
 
-Then install the necessary requirements, which are are specified in the `requierements.txt` file.
+Then install the necessary requirements:
 
 ```bash
 pip install -r requirements.txt
@@ -68,7 +99,7 @@ pip install -r requirements.txt
 And launch the main file:
 
 ```bash
-python .\main_datos_maps.py
+python main_datos_maps.py
 ```
 
 ## Tutorial article and video
