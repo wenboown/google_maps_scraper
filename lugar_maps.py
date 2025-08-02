@@ -30,6 +30,10 @@ class RestaurantMaps(LugarMaps):
         self.menu_sections = []  # Menu categories/sections
         self.has_online_menu = False
         self.menu_url = ''  # Direct link to menu if available
+        # Menu photo fields for OCR processing
+        self.has_menu_photos = False
+        self.menu_photo_urls = []  # List of menu photo URLs and info
+        self.external_links = []  # External links for backup
         
     def add_menu_item(self, name, price='', description='', section=''):
         """Add a menu item to the restaurant"""

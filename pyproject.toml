@@ -36,6 +36,7 @@ dependencies = [
     "idna==3.10",
     "outcome==1.3.0.post0",
     "packaging==24.2",
+    "playwright>=1.40.0",
     "pycparser==2.22",
     "PySocks==1.7.1",
     "python-dotenv==1.0.1",

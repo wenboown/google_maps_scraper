@@ -45,7 +45,7 @@ class RestaurantDataExporter:
             'SEARCH_KEYWORD', 'NAME', 'CATEGORY', 'CUISINE_TYPE', 'ADDRESS', 
             'PHONE', 'WEBSITE', 'PLUS_CODE', 'PRICE_RANGE', 'RATING', 'REVIEWS', 
             'OPENING_HOURS', 'DINING_OPTIONS', 'HAS_ONLINE_MENU', 'MENU_URL', 
-            'POPULAR_TIMES', 'TOTAL_MENU_ITEMS'
+            'POPULAR_TIMES', 'TOTAL_MENU_ITEMS', 'EXTERNAL_LINKS', 'ORDERING_LINKS'
         ]
         
         # Write headers
