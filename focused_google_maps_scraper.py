@@ -6,7 +6,7 @@ import re
 import urllib.request
 from datetime import datetime
 from playwright.async_api import async_playwright
-from lugar_maps import RestaurantMaps
+from location_maps import RestaurantMaps
 
 
 class FocusedGoogleMapsScraper:
@@ -117,51 +117,51 @@ class FocusedGoogleMapsScraper:
             # Restaurant name
             try:
                 name_elem = await page.wait_for_selector('h1', timeout=5000)
-                restaurant.nombre = await name_elem.text_content()
+                restaurant.name = await name_elem.text_content()
                 if self.debug_mode:
-                    print(f"  ✓ Name: {restaurant.nombre}")
+                    print(f"  ✓ Name: {restaurant.name}")
             except:
-                restaurant.nombre = ''
+                restaurant.name = ''
             
             # Category
             try:
                 category_elem = await page.query_selector('button[jsaction*="category"]')
                 if category_elem:
-                    restaurant.categoria = await category_elem.text_content()
+                    restaurant.category = await category_elem.text_content()
                     if self.debug_mode:
-                        print(f"  ✓ Category: {restaurant.categoria}")
+                        print(f"  ✓ Category: {restaurant.category}")
             except:
-                restaurant.categoria = ''
+                restaurant.category = ''
             
             # Phone
             try:
                 phone_elem = await page.query_selector('[data-item-id="phone"]')
                 if phone_elem:
-                    restaurant.telefono = await phone_elem.text_content()
+                    restaurant.phone = await phone_elem.text_content()
                     if self.debug_mode:
-                        print(f"  ✓ Phone: {restaurant.telefono}")
+                        print(f"  ✓ Phone: {restaurant.phone}")
             except:
-                restaurant.telefono = ''
+                restaurant.phone = ''
             
             # Address
             try:
                 address_elem = await page.query_selector('[data-item-id="address"]')
                 if address_elem:
-                    restaurant.direccion = await address_elem.text_content()
+                    restaurant.address = await address_elem.text_content()
                     if self.debug_mode:
-                        print(f"  ✓ Address: {restaurant.direccion}")
+                        print(f"  ✓ Address: {restaurant.address}")
             except:
-                restaurant.direccion = ''
+                restaurant.address = ''
             
             # Website
             try:
                 website_elem = await page.query_selector('[data-item-id="authority"]')
                 if website_elem:
-                    restaurant.web = await website_elem.text_content()
+                    restaurant.website = await website_elem.text_content()
                     if self.debug_mode:
-                        print(f"  ✓ Website: {restaurant.web}")
+                        print(f"  ✓ Website: {restaurant.website}")
             except:
-                restaurant.web = ''
+                restaurant.website = ''
             
             # Rating
             try:
@@ -170,15 +170,15 @@ class FocusedGoogleMapsScraper:
                     aria_label = await rating_elem.get_attribute('aria-label')
                     rating_match = re.search(r'(\d+[.,]\d+)', aria_label)
                     if rating_match:
-                        restaurant.estrellas = rating_match.group(1)
+                        restaurant.rating = rating_match.group(1)
                         if self.debug_mode:
-                            print(f"  ✓ Rating: {restaurant.estrellas}")
+                            print(f"  ✓ Rating: {restaurant.rating}")
             except:
                 pass
             
             # Detect cuisine type
-            if restaurant.categoria:
-                category_lower = restaurant.categoria.lower()
+            if restaurant.category:
+                category_lower = restaurant.category.lower()
                 cuisines = ['chinese', 'italian', 'mexican', 'indian', 'thai', 'japanese', 'french', 'american']
                 for cuisine in cuisines:
                     if cuisine in category_lower:
@@ -683,7 +683,7 @@ class FocusedGoogleMapsScraper:
         try:
             # Create filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            safe_name = re.sub(r'[^\w\-_]', '_', restaurant.nombre or 'restaurant')
+            safe_name = re.sub(r'[^\w\-_]', '_', restaurant.name or 'restaurant')
             filename = f"{safe_name}_menu_{index}_{timestamp}.jpg"
             filepath = os.path.join(self.menu_photos_folder, filename)
             
@@ -719,10 +719,10 @@ class FocusedGoogleMapsScraper:
             # Collect website URL (already done in basic info)
             external_links = []
             
-            if restaurant.web:
+            if restaurant.website:
                 external_links.append({
                     'type': 'website',
-                    'url': restaurant.web,
+                    'url': restaurant.website,
                     'description': 'Restaurant website'
                 })
             
@@ -845,12 +845,12 @@ async def test_focused_scraper():
         if restaurant:
             print(f"\n🎉 FINAL RESULTS:")
             print(f"=" * 60)
-            print(f"Restaurant: {restaurant.nombre}")
-            print(f"Category: {restaurant.categoria} ({restaurant.cuisine_type})")
-            print(f"Phone: {restaurant.telefono}")
-            print(f"Address: {restaurant.direccion}")
-            print(f"Website: {restaurant.web}")
-            print(f"Rating: {restaurant.estrellas}")
+            print(f"Restaurant: {restaurant.name}")
+            print(f"Category: {restaurant.category} ({restaurant.cuisine_type})")
+            print(f"Phone: {restaurant.phone}")
+            print(f"Address: {restaurant.address}")
+            print(f"Website: {restaurant.website}")
+            print(f"Rating: {restaurant.rating}")
             print(f"Dining Options: {restaurant.dining_options}")
             
             print(f"\n📊 MENU DATA EXTRACTION RESULTS:")

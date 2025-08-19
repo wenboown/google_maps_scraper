@@ -55,17 +55,17 @@ class RestaurantDataExporter:
         # Write data
         for row, restaurant in enumerate(self.restaurants_list, 1):
             sheet.write(row, 0, restaurant.keyword)
-            sheet.write(row, 1, restaurant.nombre)
-            sheet.write(row, 2, restaurant.categoria)
+            sheet.write(row, 1, restaurant.name)
+            sheet.write(row, 2, restaurant.category)
             sheet.write(row, 3, getattr(restaurant, 'cuisine_type', ''))
-            sheet.write(row, 4, restaurant.direccion)
-            sheet.write(row, 5, restaurant.telefono)
-            sheet.write(row, 6, restaurant.web)
+            sheet.write(row, 4, restaurant.address)
+            sheet.write(row, 5, restaurant.phone)
+            sheet.write(row, 6, restaurant.website)
             sheet.write(row, 7, restaurant.pluscode)
             sheet.write(row, 8, getattr(restaurant, 'price_range', ''))
-            sheet.write(row, 9, restaurant.estrellas)
-            sheet.write(row, 10, restaurant.resenas)
-            sheet.write(row, 11, restaurant.horario.replace('\n', '; ') if restaurant.horario else '')
+            sheet.write(row, 9, restaurant.rating)
+            sheet.write(row, 10, restaurant.reviews)
+            sheet.write(row, 11, restaurant.hours.replace('\n', '; ') if restaurant.hours else '')
             sheet.write(row, 12, '; '.join(getattr(restaurant, 'dining_options', [])))
             sheet.write(row, 13, 'Yes' if getattr(restaurant, 'has_online_menu', False) else 'No')
             sheet.write(row, 14, getattr(restaurant, 'menu_url', ''))
@@ -87,7 +87,7 @@ class RestaurantDataExporter:
             menu_items = getattr(restaurant, 'menu_items', [])
             if menu_items:
                 for item in menu_items:
-                    sheet.write(row, 0, restaurant.nombre)
+                    sheet.write(row, 0, restaurant.name)
                     sheet.write(row, 1, item.get('section', ''))
                     sheet.write(row, 2, item.get('name', ''))
                     sheet.write(row, 3, item.get('price', ''))
@@ -95,7 +95,7 @@ class RestaurantDataExporter:
                     row += 1
             else:
                 # Write a row even if no menu items to maintain restaurant reference
-                sheet.write(row, 0, restaurant.nombre)
+                sheet.write(row, 0, restaurant.name)
                 sheet.write(row, 1, 'No menu data available')
                 sheet.write(row, 2, '')
                 sheet.write(row, 3, '')
@@ -113,7 +113,7 @@ class RestaurantDataExporter:
             sheet.write(0, col, header)
         
         for row, restaurant in enumerate(self.restaurants_list, 1):
-            sheet.write(row, 0, restaurant.nombre)
+            sheet.write(row, 0, restaurant.name)
             sheet.write(row, 1, '; '.join(getattr(restaurant, 'amenities', [])))
             sheet.write(row, 2, '; '.join(getattr(restaurant, 'dining_options', [])))
             
@@ -147,17 +147,17 @@ class RestaurantDataExporter:
                 
                 row = [
                     restaurant.keyword,
-                    restaurant.nombre,
-                    restaurant.categoria,
+                    restaurant.name,
+                    restaurant.category,
                     getattr(restaurant, 'cuisine_type', ''),
-                    restaurant.direccion,
-                    restaurant.telefono,
-                    restaurant.web,
+                    restaurant.address,
+                    restaurant.phone,
+                    restaurant.website,
                     restaurant.pluscode,
                     getattr(restaurant, 'price_range', ''),
-                    restaurant.estrellas,
-                    restaurant.resenas,
-                    restaurant.horario.replace('\n', '; ') if restaurant.horario else '',
+                    restaurant.rating,
+                    restaurant.reviews,
+                    restaurant.hours.replace('\n', '; ') if restaurant.hours else '',
                     '; '.join(getattr(restaurant, 'dining_options', [])),
                     'Yes' if getattr(restaurant, 'has_online_menu', False) else 'No',
                     getattr(restaurant, 'menu_url', ''),
@@ -183,17 +183,17 @@ class RestaurantDataExporter:
         for restaurant in self.restaurants_list:
             restaurant_dict = {
                 'search_keyword': restaurant.keyword,
-                'name': restaurant.nombre,
-                'category': restaurant.categoria,
+                'name': restaurant.name,
+                'category': restaurant.category,
                 'cuisine_type': getattr(restaurant, 'cuisine_type', ''),
-                'address': restaurant.direccion,
-                'phone': restaurant.telefono,
-                'website': restaurant.web,
+                'address': restaurant.address,
+                'phone': restaurant.phone,
+                'website': restaurant.website,
                 'plus_code': restaurant.pluscode,
                 'price_range': getattr(restaurant, 'price_range', ''),
-                'rating': restaurant.estrellas,
-                'reviews': restaurant.resenas,
-                'opening_hours': restaurant.horario,
+                'rating': restaurant.rating,
+                'reviews': restaurant.reviews,
+                'opening_hours': restaurant.hours,
                 'dining_options': getattr(restaurant, 'dining_options', []),
                 'amenities': getattr(restaurant, 'amenities', []),
                 'has_online_menu': getattr(restaurant, 'has_online_menu', False),
@@ -231,7 +231,7 @@ class RestaurantDataExporter:
                 sample_items = [item.get('name', '') for item in menu_items[:5]]  # First 5 items
                 
                 writer.writerow([
-                    restaurant.nombre,
+                    restaurant.name,
                     len(menu_items),
                     '; '.join(section_names),
                     '; '.join(sample_items)
@@ -265,4 +265,4 @@ class RestaurantDataExporter:
         print(f"\nTop restaurants by menu items:")
         for i, restaurant in enumerate(restaurants_by_menu_count[:5]):
             menu_count = len(getattr(restaurant, 'menu_items', []))
-            print(f"{i+1}. {restaurant.nombre}: {menu_count} items")
+            print(f"{i+1}. {restaurant.name}: {menu_count} items")

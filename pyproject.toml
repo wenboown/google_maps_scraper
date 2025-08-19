@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "google-maps-scraper"
 version = "1.0.0"
-description = "A Google Maps scraper built with Python and Selenium"
+description = "A Google Maps scraper built with Python and Playwright"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
     {name = "JuarisTech", email = "admin@juaristech.com"},
 ]
-keywords = ["google-maps", "scraper", "selenium", "web-scraping"]
+keywords = ["google-maps", "scraper", "playwright", "web-scraping", "restaurant-data"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -28,31 +28,9 @@ classifiers = [
 ]
 
 dependencies = [
-    "attrs==25.1.0",
-    "certifi==2025.1.31",
-    "cffi==1.17.1",
-    "charset-normalizer==3.4.1",
-    "h11==0.14.0",
-    "idna==3.10",
-    "outcome==1.3.0.post0",
-    "packaging==24.2",
     "playwright>=1.40.0",
-    "pycparser==2.22",
-    "PySocks==1.7.1",
-    "python-dotenv==1.0.1",
-    "requests==2.32.3",
-    "selenium==4.29.0",
-    "sniffio==1.3.1",
-    "sortedcontainers==2.4.0",
-    "trio==0.29.0",
-    "trio-websocket==0.12.1",
-    "typing_extensions==4.12.2",
-    "urllib3==2.3.0",
-    "webdriver-manager==4.0.2",
-    "websocket-client==1.8.0",
-    "websockets==15.0",
-    "wsproto==1.2.0",
-    "xlwt==1.3.0",
+    "requests>=2.32.0",
+    "xlwt>=1.3.0",
 ]
 
 [project.urls]

@@ -1,105 +1,135 @@
-# Google Maps / Google My Business Scraper 🌎📊
+# Google Maps Restaurant Scraper 🏪📊
 
-This is script is a scraping script developed with Python and its automation library Selenium. **Consists of reading a list of keywords, searching them in the Google Maps search, and getting its data and cover image**.
+A modern, focused Google Maps scraper built with Python and Playwright. **Specializes in extracting comprehensive restaurant data including menu items, photos, and business information**.
 
-The script goes one by one searching for the keyword, and storing the data in a list, to finally export it to an Excel file located in the folder specified by the user when running the script.
+## Key Features
 
-In the presentation video I show the script running without hiding the Chrome window, and it can be seen quite clear the process that the script follows.
+- **🎯 Focused Restaurant Extraction**: Prioritized approach for maximum menu data extraction
+- **📋 Menu Text Extraction**: Direct extraction of menu items from Google Maps
+- **📸 Menu Photo Download**: Downloads menu photos for future OCR processing  
+- **🔗 External Links Collection**: Gathers delivery service links and website URLs
+- **📊 Multi-Format Export**: Excel, CSV, and JSON output formats
+- **⚡ Fast & Reliable**: Built with modern Playwright for better performance
+- **🌐 Multi-threaded**: Parallel processing for faster extraction
 
-However, although I have added [that version](build/maps_scraper_juaristech_windowed_demo.exe) in the build folder, the final version and the one it is in the source code, works without showing the Chrome window, because it works with 5 simultaneous threads to increase the speed and obtain the results faster.
+## Extraction Strategy
 
-For now the script works only for Spanish and English languages, however, I can add more languages in the future.
+The scraper follows a three-tier priority system:
 
-[![Google Maps Scraper](https://juaristech.com/wp-content/uploads/2021/11/google-maps-scraper-result.jpg)](https://juaristech.com/google-maps-scraper "JuarisTech")
+1. **Priority 1**: Extract menu text directly from Google Maps
+2. **Priority 2**: Download menu photos for OCR processing if no text found
+3. **Priority 3**: Collect external links (delivery services, websites) as backup
 
-## How to Run It
-
-To execute this script you need to run it in the command prompt.
-
-```bash
-google_maps_scraper_juaristech.exe
-```
-
-Then, some questions will appear, which are necessary to run the script:
-
-1. You will need to type "ES" for Spanish or "EN" for English.
-
-    ```bash
-    [1] Introduce the language, (ES o EN): 
-    ```
-2. You will need to specify the folder to save the output Excel and images. For example: *D:\Projects\Spain\Madrid\output\\*
-
-    ```bash
-    [2] Introduce the path to save the images:
-    ```
-
-3. To finish, you need to specify where is located the *.txt* file with the keywords to search. For example: *D:\Projects\Spain\Madrid\places.txt*
-
-    ```bash
-    [3] Introduce the path of the keywords txt file:
-    ```
-
-Then the script starts to work, and when it finished, the Excel file would appear in the output folder.
-
-## How to run the script in Python
-
-If you want to customize the script or just launch it with Python, you can follow these steps:
+## Quick Start
 
 ### Using uv (Recommended)
 
-This project now uses [uv](https://docs.astral.sh/uv/) for fast and reliable package management.
+1. **Install uv** if you haven't already:
+   ```bash
+   # On macOS and Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # On Windows
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   
+   # Or with pip
+   pip install uv
+   ```
 
-First, install uv if you haven't already:
-```bash
-# On macOS and Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
+2. **Run the scraper**:
+   ```bash
+   # Install dependencies first
+   uv sync
 
-# On Windows
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   # Then run
+   uv run python main.py
+   ```
 
-# Or with pip
-pip install uv
+3. **Follow the prompts**:
+   - **[1] Restaurant keywords file**: Provide a .txt file with restaurant queries (one per line)
+   - **[2] Output folder**: Specify where to save results (default: `./output/`)
+   - **[3] Number of threads**: Choose 1-3 parallel threads (default: 2)
+
+### Sample Input Format
+
+Create a text file (e.g., `restaurants.txt`) with restaurant queries:
+```
+Szechuan Royale, 470 Schooleys Mountain Rd #3, Hackettstown, NJ 07840
+Pizza Hut Times Square New York
+McDonald's 42nd Street Manhattan
+Olive Garden Brooklyn NY
 ```
 
-Then, run the project:
-```bash
-# Install dependencies and run the main script
-uv run python main_datos_maps.py
+### Output Files
 
-# Or activate the virtual environment and run
+The scraper generates:
+- **Excel file**: `focused_extraction_results.xls` - Full restaurant data with menu items
+- **CSV file**: `focused_extraction_results.csv` - Structured data export  
+- **JSON file**: `focused_extraction_results.json` - Complete data in JSON format
+- **Menu photos**: Downloaded to `menu_photos/` folder for OCR processing
+
+## Development Setup
+
+### Modern Python Development with uv
+
+This project uses [uv](https://docs.astral.sh/uv/) for fast dependency management and virtual environments.
+
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd google_maps_scraper
+
+# Install dependencies
 uv sync
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-python main_datos_maps.py
+
+# Install Playwright browsers (required for web scraping)
+uv run playwright install chromium
+
+# Run the scraper
+uv run python main.py
 ```
 
-### Traditional method (Alternative)
+### Project Structure
 
-If you prefer to use the traditional Python virtual environment approach:
-
-First create a virtual environment and activate it:
-
-Windows:
-```bash
-python -m venv env
-.\env\Scripts\activate
+```
+google_maps_scraper/
+├── focused_google_maps_scraper.py    # Main scraper logic (Playwright-based)
+├── main.py                           # Interactive entry point
+├── location_maps.py                  # Data models for restaurants
+├── restaurant_exporter.py            # Multi-format data export
+├── pyproject.toml                    # Modern Python project configuration
+├── sample_restaurants.txt           # Example input file
+├── output/                          # Generated reports and data
+└── menu_photos/                     # Downloaded menu images
 ```
 
-Ubuntu/macOS:
-```bash
-python3 -m venv env
-source env/bin/activate
-```
+### Key Components
 
-Then install the necessary requirements:
+- **`FocusedGoogleMapsScraper`**: Main scraper class with prioritized extraction
+- **`RestaurantMaps`**: Data model for restaurant information and menu items
+- **`RestaurantDataExporter`**: Handles Excel, CSV, and JSON export formats
 
-```bash
-pip install -r requirements.txt
-```
+### Alternative Setup (Traditional)
 
-And launch the main file:
+If you prefer traditional Python virtual environments:
 
 ```bash
-python main_datos_maps.py
+# Create virtual environment
+python -m venv .venv
+
+# Activate (Linux/macOS)
+source .venv/bin/activate
+# Activate (Windows)
+.venv\Scripts\activate
+
+# Install dependencies
+pip install playwright requests xlwt
+
+# Install browsers
+playwright install chromium
+
+# Run scraper
+python main.py
 ```
 
 ## Tutorial article and video
