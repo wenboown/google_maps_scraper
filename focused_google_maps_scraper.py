@@ -255,11 +255,11 @@ class FocusedGoogleMapsScraper:
                         await menu_elem.click()
                         await page.wait_for_timeout(3000)
                         
-                        # Check if menu content loaded
-                        if await self._check_menu_content_presence(page):
-                            if self.debug_mode:
-                                print(f"    ✓ Menu section loaded successfully")
-                            return True
+                        # For our improved logic, we assume menu navigation succeeded
+                        # if we clicked the menu button - the sub-category logic will handle the rest
+                        if self.debug_mode:
+                            print(f"    ✓ Menu section navigation attempted")
+                        return True
                         
                 except:
                     continue
@@ -279,23 +279,134 @@ class FocusedGoogleMapsScraper:
             return False
     
     async def _extract_menu_items_from_section(self, page, restaurant):
-        """Extract menu items from the menu section"""
+        """Extract menu items from the menu section, handling sub-category tabs"""
         try:
             items_found = 0
             
-            # Enhanced selectors for menu items
+            if self.debug_mode:
+                print("    → Checking for menu sub-category tabs...")
+            
+            # First, try to find menu sub-category tabs
+            menu_category_tabs = await self._find_menu_category_tabs(page)
+            
+            if menu_category_tabs:
+                if self.debug_mode:
+                    print(f"    ✓ Found {len(menu_category_tabs)} menu category tabs")
+                
+                # Extract from each category tab
+                for tab_name, tab_element in menu_category_tabs:
+                    if self.debug_mode:
+                        print(f"      → Extracting from category: {tab_name}")
+                    
+                    try:
+                        # Click the category tab
+                        await tab_element.click()
+                        await page.wait_for_timeout(2000)  # Wait for content to load
+                        
+                        # Extract menu items from this category
+                        category_items = await self._extract_items_from_current_category(page, restaurant, tab_name)
+                        items_found += category_items
+                        
+                        if self.debug_mode and category_items > 0:
+                            print(f"        ✓ Found {category_items} items in {tab_name}")
+                        
+                    except Exception as e:
+                        if self.debug_mode:
+                            print(f"        ❌ Error extracting from {tab_name}: {e}")
+                        continue
+            else:
+                if self.debug_mode:
+                    print("    → No sub-category tabs found, trying overview tab...")
+                
+                # Check if items are in the main overview tab (case for short menus)
+                items_found = await self._extract_items_from_current_category(page, restaurant, "Overview")
+            
+            return items_found
+            
+        except Exception as e:
+            if self.debug_mode:
+                print(f"    ❌ Error in menu section extraction: {e}")
+            return 0
+    
+    async def _find_menu_category_tabs(self, page):
+        """Find menu sub-category tabs like 'Beef', 'Seafood', etc."""
+        try:
+            menu_category_tabs = []
+            
+            # Look for tab-like elements that could be menu categories
+            tab_selectors = [
+                # Look for role="tab" elements that are not the main tabs
+                '[role="tab"]:not(:has-text("Overview")):not(:has-text("Menu")):not(:has-text("Reviews")):not(:has-text("About"))',
+                # Look for button elements that could be category tabs
+                'button[aria-selected], button[role="tab"]',
+                # Look for div elements that act like tabs
+                'div[role="button"][aria-selected]'
+            ]
+            
+            # Also look for elements that contain common menu category names
+            category_keywords = ['beef', 'chicken', 'pork', 'seafood', 'vegetable', 'soup', 'appetizer', 
+                               'dessert', 'beverage', 'drink', 'lunch', 'dinner', 'entree', 'main',
+                               'side', 'rice', 'noodle', 'pasta', 'pizza', 'salad', 'sandwich']
+            
+            processed_texts = set()
+            
+            for selector in tab_selectors:
+                try:
+                    elements = await page.query_selector_all(selector)
+                    for element in elements:
+                        try:
+                            text = await element.text_content()
+                            if not text or text in processed_texts:
+                                continue
+                            
+                            text_clean = text.strip().lower()
+                            processed_texts.add(text)
+                            
+                            # Check if this looks like a menu category
+                            if (len(text_clean) < 20 and  # Not too long
+                                (any(keyword in text_clean for keyword in category_keywords) or
+                                 text_clean.replace(' ', '').isalpha())):  # Or just alphabetic text
+                                
+                                menu_category_tabs.append((text.strip(), element))
+                                
+                        except:
+                            continue
+                except:
+                    continue
+            
+            return menu_category_tabs
+            
+        except Exception as e:
+            return []
+    
+    async def _extract_items_from_current_category(self, page, restaurant, category_name):
+        """Extract menu items from the currently active category"""
+        try:
+            items_found = 0
+            
+            # Wait a moment for content to load
+            await page.wait_for_timeout(1000)
+            
+            # Enhanced selectors that work better with Google Maps structure
+            # Focus on getting parent elements that contain complete menu item info
             menu_item_selectors = [
-                # Look for text containing prices
-                'text=/\\$\\d+\\.\\d+/',
-                'text=/\\$\\d+/',
-                # Look for elements that might contain menu items
+                # Look for parent containers that have price information
+                'div:has(text=/\\$\\d+/)',  # Divs containing price text
+                'span:has(text=/\\$\\d+/)',  # Spans containing price text  
+                'p:has(text=/\\$\\d+/)',    # Paragraphs containing price text
+                'li:has(text=/\\$\\d+/)',   # List items containing price text
+                # Also try direct text selectors but with parent context
                 'div:has-text("$")',
-                'span:has-text("$")',
+                'span:has-text("$")', 
+                'p:has-text("$")',
                 'li:has-text("$")',
-                'p:has-text("$")'
+                # Look for structured elements
+                'div[role="listitem"]',
+                'div[role="option"]'
             ]
             
             processed_texts = set()
+            processed_items = set()  # Track processed items to avoid duplicates
             
             for selector in menu_item_selectors:
                 try:
@@ -309,29 +420,109 @@ class FocusedGoogleMapsScraper:
                                 continue
                             processed_texts.add(text)
                             
-                            # Get parent context for more complete item info
-                            parent = await element.query_selector('xpath=..')
-                            if parent:
-                                parent_text = await parent.text_content()
-                                if parent_text and len(parent_text) > len(text):
-                                    text = parent_text
+                            # For menu items, we need to find elements that contain both name and price
+                            # Try to find the cleanest representation of the menu item
+                            menu_item_text = text
+                            
+                            # If the text is too long, try to find a shorter, more specific child element
+                            if len(text) > 200:
+                                try:
+                                    # Look for shorter child elements that contain price
+                                    child_elements = await element.query_selector_all('div, span, p')
+                                    for child in child_elements:
+                                        child_text = await child.text_content()
+                                        if child_text and re.search(r'\$\d+\.?\d*', child_text) and len(child_text) < 200:
+                                            menu_item_text = child_text
+                                            break
+                                except:
+                                    pass
                             
                             # Check if this looks like a menu item
-                            if self._looks_like_menu_item(text):
-                                price_match = re.search(r'\$\d+\.?\d*', text)
+                            if self._looks_like_menu_item(menu_item_text):
+                                if self.debug_mode and category_name not in ['Overview', 'Menu', 'Reviews', 'About']:
+                                    print(f"        Processing potential menu item: {menu_item_text[:60]}...")
+                                # Extract price
+                                price_match = re.search(r'\$\d+\.?\d*', menu_item_text)
                                 price = price_match.group() if price_match else ''
                                 
-                                # Extract item name
-                                item_name = re.sub(r'\$\d+\.?\d*', '', text).strip()
+                                # Extract item name (remove price and clean up)
+                                item_name = menu_item_text
+                                
+                                # Remove price from the text
+                                if price:
+                                    item_name = menu_item_text.replace(price, '').strip()
+                                
+                                # Clean up the item name
                                 item_name = self._clean_item_name(item_name)
                                 
-                                if len(item_name) > 2 and len(item_name) < 150:
-                                    restaurant.add_menu_item(item_name, price, '', 'Google Maps Menu')
+                                # Remove common prefixes and suffixes
+                                item_name = re.sub(r'^[\d\.\s\-–]+', '', item_name)  # Remove leading numbers and dashes
+                                item_name = re.sub(r'[\s\-–]+$', '', item_name)     # Remove trailing spaces and dashes
+                                item_name = re.sub(r'\s+', ' ', item_name)          # Normalize spaces
+                                
+                                # Remove common Google Maps UI text
+                                ui_patterns = [
+                                    r'\bHot and spicy\b',
+                                    r'\bSliced beef\b.*sauce$',
+                                    r'\btypically includes\b.*'
+                                ]
+                                
+                                for pattern in ui_patterns:
+                                    item_name = re.sub(pattern, '', item_name, flags=re.IGNORECASE)
+                                
+                                item_name = item_name.strip()
+                                
+                                # Create unique identifier to avoid duplicates
+                                item_key = f"{item_name}|{price}|{category_name}"
+                                
+                                # Skip certain categories that don't contain real menu items
+                                skip_categories = ['Overview', 'Menu', 'Reviews', 'About']
+                                if category_name in skip_categories:
+                                    if self.debug_mode:
+                                        print(f"        Skipping category: {category_name}")
+                                    continue
+                                
+                                # Validate item name and check for duplicates
+                                if (len(item_name) > 3 and len(item_name) < 100 and 
+                                    not item_name.lower() in ['hot', 'spicy', 'sauce'] and
+                                    item_key not in processed_items):
+                                    
+                                    processed_items.add(item_key)
+                                    
+                                    # Split name and description if possible
+                                    # Look for common patterns like "ItemNameDescription" 
+                                    clean_name = item_name
+                                    description = ''
+                                    
+                                    # Try to separate main dish name from description
+                                    # Common patterns: "Beef HowfunStir-fried..." -> "Beef Howfun", "Stir-fried..."
+                                    for separator in ['Stir-fried', 'Sautéed', 'Chunks of', 'Slices of', 'Diced', 'Served']:
+                                        if separator in item_name:
+                                            parts = item_name.split(separator, 1)
+                                            if len(parts) == 2:
+                                                clean_name = parts[0].strip()
+                                                description = f"{separator}{parts[1]}".strip()
+                                                break
+                                    
+                                    # Further clean the name
+                                    if len(clean_name) > 50:  # If still too long, try other patterns
+                                        # Look for capital letters indicating new words
+                                        import re
+                                        # Split on capital letters that follow lowercase
+                                        words = re.findall(r'[A-Z][a-z]*', clean_name)
+                                        if len(words) >= 2:
+                                            clean_name = ' '.join(words[:3])  # Take first 3 words
+                                    
+                                    restaurant.add_menu_item(clean_name, price, description, category_name)
                                     items_found += 1
                                     
-                                    if self.debug_mode and items_found <= 5:
-                                        print(f"      Found: {item_name} - {price}")
-                        
+                                    if self.debug_mode and items_found <= 3:
+                                        print(f"        Found: {clean_name} - {price}")
+                                    
+                                    # Limit items per category to avoid excessive extraction
+                                    if items_found >= 20:
+                                        break
+                                        
                         except:
                             continue
                             
