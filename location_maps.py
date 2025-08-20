@@ -20,14 +20,8 @@ class RestaurantMaps(LocationMaps):
     
     def __init__(self):
         super().__init__()
-        # Additional restaurant-specific fields
-        self.price_range = ''  # $, $$, $$$, $$$$
-        # self.cuisine_type = ''  # Italian, Mexican, etc.
-        self.dining_options = []  # Dine-in, Takeout, Delivery
-        self.amenities = []  # WiFi, Parking, etc.
-        self.popular_times = ''  # Peak hours info
+        # Essential restaurant-specific fields
         self.menu_items = []  # List of menu items with details
-        self.menu_sections = []  # Menu categories/sections
         self.has_online_menu = False
         self.menu_url = ''  # Direct link to menu if available
         # Menu photo fields for OCR processing
@@ -37,7 +31,8 @@ class RestaurantMaps(LocationMaps):
         # Opening hours: Dictionary of day -> hours (e.g., {"Monday": "11 AM–11 PM", "Tuesday": "Closed"})
         self.opening_hours = {}
         # About information: Dictionary with sections and their items
-        # Format: {"section_name": [{"text": "item text", "available": True/False}], "Description": "restaurant description"}
+        # Format: {"section_name": ["item1", "item2"], "Description": "restaurant description"}
+        # This replaces dining_options, amenities, etc. as they're all captured in about
         self.about = {}
         
     def add_menu_item(self, name, price='', description='', section=''):
@@ -50,12 +45,14 @@ class RestaurantMaps(LocationMaps):
         }
         self.menu_items.append(menu_item)
     
-    def add_menu_section(self, section_name, items=None):
-        """Add a menu section/category"""
-        if items is None:
-            items = []
-        menu_section = {
-            'name': section_name,
-            'items': items
-        }
-        self.menu_sections.append(menu_section)
+    def get_dining_options(self):
+        """Get dining options from about information"""
+        return self.about.get('Service options', [])
+    
+    def get_amenities(self):
+        """Get amenities from about information"""
+        amenities = []
+        # Combine various amenity-related sections
+        for section in ['Amenities', 'Accessibility', 'Payments', 'Parking']:
+            amenities.extend(self.about.get(section, []))
+        return amenities

@@ -235,23 +235,8 @@ class FocusedGoogleMapsScraper:
             except:
                 pass
             
-            # Detect dining options using structured aria-labels
-            dining_options = []
-            try:
-                # Look for the "About" region div that contains dining options
-                about_region = await page.query_selector('div[role="region"][aria-label*="About"]')
-                if about_region:
-                    # Find all group divs within the about region that have aria-label
-                    group_divs = await about_region.query_selector_all('div[role="group"][aria-label]')
-                    for group_div in group_divs:
-                        aria_label = await group_div.get_attribute('aria-label')
-                        dining_options.append(aria_label.strip())
-                        
-                        if self.debug_mode:
-                            print(f"  Found dining option aria-label: {aria_label}")
-            except:
-                pass
-            restaurant.dining_options = dining_options
+            # Note: Dining options and amenities are now captured in the about section
+            # No need to extract them separately here
             
         except Exception as e:
             print(f"Error extracting basic info: {e}")
@@ -379,16 +364,6 @@ class FocusedGoogleMapsScraper:
                                     if span_elem:
                                         item_text = await span_elem.get_attribute('aria-label')
                                         if item_text:
-                                            # Determine if available based on visual indicators
-                                            # Look for negative styling classes on the div container
-                                            # div_elem = await li_elem.query_selector('div.iNvpkb')
-                                            # is_available = True
-                                            # if div_elem:
-                                            #     class_list = await div_elem.get_attribute('class')
-                                            #     # XJynsc typically indicates "not available" styling
-                                            #     if class_list and 'XJynsc' in class_list:
-                                            #         is_available = False
-                                            
                                             items.append(item_text.strip())
                                 except Exception as item_error:
                                     continue
@@ -1114,7 +1089,6 @@ async def test_focused_scraper():
             print(f"Address: {restaurant.address}")
             print(f"Website: {restaurant.website}")
             print(f"Rating: {restaurant.rating}")
-            print(f"Dining Options: {restaurant.dining_options}")
             
             # Display opening hours
             if hasattr(restaurant, 'opening_hours') and restaurant.opening_hours:
@@ -1129,8 +1103,7 @@ async def test_focused_scraper():
                     if isinstance(items, list):
                         print(f"  {section}:")
                         for item in items[:5]:  # Show first 5 items
-                            status = "✓" if item.get('available', True) else "❌"
-                            print(f"    {status} {item['text']}")
+                            print(f"    ✓ {item}")
                         if len(items) > 5:
                             print(f"    ... and {len(items) - 5} more")
                     else:

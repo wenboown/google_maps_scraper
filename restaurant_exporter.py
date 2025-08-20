@@ -115,9 +115,9 @@ class RestaurantDataExporter:
         # Headers
         headers = [
             'SEARCH_KEYWORD', 'NAME', 'CATEGORY', 'ADDRESS', 
-            'PHONE', 'WEBSITE', 'PRICE_RANGE', 'RATING', 'REVIEWS', 
-            'OPENING_HOURS', 'DINING_OPTIONS', 'HAS_ONLINE_MENU', 'MENU_URL', 
-            'POPULAR_TIMES', 'TOTAL_MENU_ITEMS', 'ABOUT_SECTIONS', 'EXTERNAL_LINKS'
+            'PHONE', 'WEBSITE', 'RATING', 'OPENING_HOURS', 
+            'HAS_ONLINE_MENU', 'MENU_URL', 'TOTAL_MENU_ITEMS', 
+            'ABOUT_SECTIONS', 'EXTERNAL_LINKS'
         ]
         
         # Write headers
@@ -126,47 +126,43 @@ class RestaurantDataExporter:
         
         # Write data
         for row, restaurant in enumerate(self.restaurants_list, 1):
-            sheet.write(row, 0, restaurant.keyword)
-            sheet.write(row, 1, restaurant.name)
-            sheet.write(row, 2, restaurant.category)
-            # sheet.write(row, 3, getattr(restaurant, 'cuisine_type', ''))
-            sheet.write(row, 4, restaurant.address)
-            sheet.write(row, 5, restaurant.phone)
-            sheet.write(row, 6, restaurant.website)
-            sheet.write(row, 7, restaurant.pluscode)
-            sheet.write(row, 8, getattr(restaurant, 'price_range', ''))
-            sheet.write(row, 9, restaurant.rating)
-            sheet.write(row, 10, restaurant.reviews)
+            col = 0
+            sheet.write(row, col, restaurant.keyword); col += 1
+            sheet.write(row, col, restaurant.name); col += 1
+            sheet.write(row, col, restaurant.category); col += 1
+            sheet.write(row, col, restaurant.address); col += 1
+            sheet.write(row, col, restaurant.phone); col += 1
+            sheet.write(row, col, restaurant.website); col += 1
+            sheet.write(row, col, restaurant.rating); col += 1
             
             # Format opening hours
             opening_hours = getattr(restaurant, 'opening_hours', {})
             if opening_hours:
                 hours_text = '; '.join([f"{day}: {hours}" for day, hours in opening_hours.items()])
             else:
-                hours_text = restaurant.hours.replace('\n', '; ') if restaurant.hours else ''
-            sheet.write(row, 11, hours_text)
+                hours_text = ''
+            sheet.write(row, col, hours_text); col += 1
             
-            sheet.write(row, 12, '; '.join(getattr(restaurant, 'dining_options', [])))
-            sheet.write(row, 13, 'Yes' if getattr(restaurant, 'has_online_menu', False) else 'No')
-            sheet.write(row, 14, getattr(restaurant, 'menu_url', ''))
-            sheet.write(row, 15, getattr(restaurant, 'popular_times', ''))
-            sheet.write(row, 16, len(getattr(restaurant, 'menu_items', [])))
+            sheet.write(row, col, 'Yes' if getattr(restaurant, 'has_online_menu', False) else 'No'); col += 1
+            sheet.write(row, col, getattr(restaurant, 'menu_url', '')); col += 1
+            sheet.write(row, col, len(getattr(restaurant, 'menu_items', []))); col += 1
             
             # Format about sections summary
             about_info = getattr(restaurant, 'about', {})
             if about_info:
                 about_sections = list(about_info.keys())
-                sheet.write(row, 17, '; '.join(about_sections))
+                sheet.write(row, col, '; '.join(about_sections))
             else:
-                sheet.write(row, 17, '')
+                sheet.write(row, col, '')
+            col += 1
             
             # External links
             external_links = getattr(restaurant, 'external_links', [])
             if external_links:
                 links_text = '; '.join([f"{link.get('type', 'unknown')}: {link.get('url', '')}" for link in external_links])
-                sheet.write(row, 18, links_text)
+                sheet.write(row, col, links_text)
             else:
-                sheet.write(row, 18, '')
+                sheet.write(row, col, '')
     
     def _create_menu_sheet(self, workbook):
         """Create the menu items sheet"""
@@ -203,20 +199,21 @@ class RestaurantDataExporter:
         sheet = workbook.add_sheet("Amenities", cell_overwrite_ok=True)
         
         # Headers
-        headers = ['RESTAURANT_NAME', 'AMENITIES', 'DINING_OPTIONS', 'MENU_SECTIONS']
+        headers = ['RESTAURANT_NAME', 'DINING_OPTIONS', 'AMENITIES']
         
         for col, header in enumerate(headers):
             sheet.write(0, col, header)
         
         for row, restaurant in enumerate(self.restaurants_list, 1):
             sheet.write(row, 0, restaurant.name)
-            sheet.write(row, 1, '; '.join(getattr(restaurant, 'amenities', [])))
-            sheet.write(row, 2, '; '.join(getattr(restaurant, 'dining_options', [])))
             
-            # Menu sections
-            menu_sections = getattr(restaurant, 'menu_sections', [])
-            section_names = [section.get('name', '') for section in menu_sections]
-            sheet.write(row, 3, '; '.join(section_names))
+            # Get dining options from about info
+            dining_options = restaurant.get_dining_options() if hasattr(restaurant, 'get_dining_options') else []
+            sheet.write(row, 1, '; '.join(dining_options))
+            
+            # Get amenities from about info
+            amenities = restaurant.get_amenities() if hasattr(restaurant, 'get_amenities') else []
+            sheet.write(row, 2, '; '.join(amenities))
     
     def _create_opening_hours_sheet(self, workbook):
         """Create the opening hours sheet"""
@@ -258,8 +255,8 @@ class RestaurantDataExporter:
                         for item in section_data:
                             sheet.write(row, 0, restaurant.name)
                             sheet.write(row, 1, section_name)
-                            sheet.write(row, 2, item.get('text', ''))
-                            sheet.write(row, 3, 'Yes' if item.get('available', True) else 'No')
+                            sheet.write(row, 2, str(item))
+                            sheet.write(row, 3, 'Yes')
                             sheet.write(row, 4, 'Item')
                             row += 1
                     else:
@@ -293,9 +290,8 @@ class RestaurantDataExporter:
             # Headers
             headers = [
                 'search_keyword', 'name', 'category', 'address', 
-                'phone', 'website', 'price_range', 'rating', 'reviews', 
-                'opening_hours', 'opening_hours_json', 'dining_options', 'has_online_menu', 'menu_url', 
-                'popular_times', 'amenities', 'total_menu_items', 'about_sections', 'about_json', 
+                'phone', 'website', 'rating', 'opening_hours', 'opening_hours_json', 
+                'has_online_menu', 'menu_url', 'total_menu_items', 'about_sections', 'about_json', 
                 'menu_items_json', 'external_links_json'
             ]
             writer.writerow(headers)
@@ -322,21 +318,14 @@ class RestaurantDataExporter:
                     restaurant.keyword,
                     restaurant.name,
                     restaurant.category,
-                    # getattr(restaurant, 'cuisine_type', ''),
                     restaurant.address,
                     restaurant.phone,
                     restaurant.website,
-                    restaurant.pluscode,
-                    getattr(restaurant, 'price_range', ''),
                     restaurant.rating,
-                    restaurant.reviews,
                     hours_text,
                     opening_hours_json,
-                    '; '.join(getattr(restaurant, 'dining_options', [])),
                     'Yes' if getattr(restaurant, 'has_online_menu', False) else 'No',
                     getattr(restaurant, 'menu_url', ''),
-                    getattr(restaurant, 'popular_times', ''),
-                    '; '.join(getattr(restaurant, 'amenities', [])),
                     len(getattr(restaurant, 'menu_items', [])),
                     about_sections,
                     about_json,
@@ -363,24 +352,16 @@ class RestaurantDataExporter:
                 'search_keyword': restaurant.keyword,
                 'name': restaurant.name,
                 'category': restaurant.category,
-                # 'cuisine_type': getattr(restaurant, 'cuisine_type', ''),
                 'address': restaurant.address,
                 'phone': restaurant.phone,
                 'website': restaurant.website,
-                'price_range': getattr(restaurant, 'price_range', ''),
                 'rating': restaurant.rating,
-                'reviews': restaurant.reviews,
-                'opening_hours_legacy': restaurant.hours,  # Keep legacy hours field
-                'opening_hours': getattr(restaurant, 'opening_hours', {}),  # New structured hours
-                'dining_options': getattr(restaurant, 'dining_options', []),
-                'amenities': getattr(restaurant, 'amenities', []),
+                'opening_hours': getattr(restaurant, 'opening_hours', {}),
                 'has_online_menu': getattr(restaurant, 'has_online_menu', False),
                 'menu_url': getattr(restaurant, 'menu_url', ''),
-                'popular_times': getattr(restaurant, 'popular_times', ''),
                 'menu_items': getattr(restaurant, 'menu_items', []),
-                'menu_sections': getattr(restaurant, 'menu_sections', []),
-                'about': getattr(restaurant, 'about', {}),  # About information
-                'external_links': getattr(restaurant, 'external_links', []),  # External links
+                'about': getattr(restaurant, 'about', {}),
+                'external_links': getattr(restaurant, 'external_links', []),
                 'has_menu_photos': getattr(restaurant, 'has_menu_photos', False),
                 'menu_photo_urls': getattr(restaurant, 'menu_photo_urls', [])
             }
@@ -408,15 +389,16 @@ class RestaurantDataExporter:
             
             for restaurant in self.restaurants_list:
                 menu_items = getattr(restaurant, 'menu_items', [])
-                menu_sections = getattr(restaurant, 'menu_sections', [])
+                about_info = getattr(restaurant, 'about', {})
                 
-                section_names = [section.get('name', '') for section in menu_sections]
+                # Get unique menu sections from menu items
+                sections = list(set(item.get('section', '') for item in menu_items if item.get('section')))
                 sample_items = [item.get('name', '') for item in menu_items[:5]]  # First 5 items
                 
                 writer.writerow([
                     restaurant.name,
                     len(menu_items),
-                    '; '.join(section_names),
+                    '; '.join(sections),
                     '; '.join(sample_items)
                 ])
         
@@ -428,12 +410,16 @@ class RestaurantDataExporter:
         total_restaurants = len(self.restaurants_list)
         restaurants_with_menus = sum(1 for r in self.restaurants_list if getattr(r, 'menu_items', []))
         total_menu_items = sum(len(getattr(r, 'menu_items', [])) for r in self.restaurants_list)
+        restaurants_with_about = sum(1 for r in self.restaurants_list if getattr(r, 'about', {}))
         
         print(f"\n=== EXTRACTION SUMMARY ===")
         print(f"Total restaurants processed: {total_restaurants}")
         print(f"Restaurants with menu data: {restaurants_with_menus}")
+        print(f"Restaurants with about data: {restaurants_with_about}")
         print(f"Total menu items extracted: {total_menu_items}")
-        print(f"Average menu items per restaurant: {total_menu_items/total_restaurants:.1f}")
+        
+        if total_restaurants > 0:
+            print(f"Average menu items per restaurant: {total_menu_items/total_restaurants:.1f}")
         
         if restaurants_with_menus > 0:
             print(f"Average menu items per restaurant with menus: {total_menu_items/restaurants_with_menus:.1f}")
