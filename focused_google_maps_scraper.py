@@ -307,6 +307,11 @@ class FocusedGoogleMapsScraper:
                         category_items = await self._extract_items_from_current_category(page, restaurant, tab_name)
                         items_found += category_items
                         
+                        if self.debug_mode:
+                            print(f"        Category '{tab_name}' returned: {category_items} items")
+                            print(f"        Total items found so far: {items_found}")
+                            print(f"        Restaurant menu_items count: {len(restaurant.menu_items)}")
+                        
                         if self.debug_mode and category_items > 0:
                             print(f"        ✓ Found {category_items} items in {tab_name}")
                         
@@ -384,6 +389,13 @@ class FocusedGoogleMapsScraper:
         try:
             items_found = 0
             
+            # Skip certain categories that don't contain real menu items
+            skip_categories = ['Overview', 'Menu', 'Reviews', 'About']
+            if category_name in skip_categories:
+                if self.debug_mode:
+                    print(f"      → Skipping category: {category_name}")
+                return 0
+            
             # Wait a moment for content to load
             await page.wait_for_timeout(1000)
             
@@ -438,9 +450,8 @@ class FocusedGoogleMapsScraper:
                                     pass
                             
                             # Check if this looks like a menu item
-                            if self._looks_like_menu_item(menu_item_text):
-                                if self.debug_mode and category_name not in ['Overview', 'Menu', 'Reviews', 'About']:
-                                    print(f"        Processing potential menu item: {menu_item_text[:60]}...")
+                            looks_like_menu = self._looks_like_menu_item(menu_item_text)
+                            if looks_like_menu:
                                 # Extract price
                                 price_match = re.search(r'\$\d+\.?\d*', menu_item_text)
                                 price = price_match.group() if price_match else ''
@@ -451,6 +462,10 @@ class FocusedGoogleMapsScraper:
                                 # Remove price from the text
                                 if price:
                                     item_name = menu_item_text.replace(price, '').strip()
+                                
+                                # Skip items that are just prices (no name)
+                                if len(item_name.strip()) <= 3:
+                                    continue
                                 
                                 # Clean up the item name
                                 item_name = self._clean_item_name(item_name)
@@ -475,18 +490,12 @@ class FocusedGoogleMapsScraper:
                                 # Create unique identifier to avoid duplicates
                                 item_key = f"{item_name}|{price}|{category_name}"
                                 
-                                # Skip certain categories that don't contain real menu items
-                                skip_categories = ['Overview', 'Menu', 'Reviews', 'About']
-                                if category_name in skip_categories:
-                                    if self.debug_mode:
-                                        print(f"        Skipping category: {category_name}")
-                                    continue
-                                
                                 # Validate item name and check for duplicates
-                                if (len(item_name) > 3 and len(item_name) < 100 and 
-                                    not item_name.lower() in ['hot', 'spicy', 'sauce'] and
-                                    item_key not in processed_items):
-                                    
+                                name_length_ok = len(item_name) > 3 and len(item_name) < 100
+                                not_excluded = not item_name.lower() in ['hot', 'spicy', 'sauce']
+                                not_duplicate = item_key not in processed_items
+                                
+                                if (name_length_ok and not_excluded and not_duplicate):
                                     processed_items.add(item_key)
                                     
                                     # Split name and description if possible
@@ -507,23 +516,31 @@ class FocusedGoogleMapsScraper:
                                     # Further clean the name
                                     if len(clean_name) > 50:  # If still too long, try other patterns
                                         # Look for capital letters indicating new words
-                                        import re
                                         # Split on capital letters that follow lowercase
                                         words = re.findall(r'[A-Z][a-z]*', clean_name)
                                         if len(words) >= 2:
                                             clean_name = ' '.join(words[:3])  # Take first 3 words
                                     
-                                    restaurant.add_menu_item(clean_name, price, description, category_name)
-                                    items_found += 1
-                                    
-                                    if self.debug_mode and items_found <= 3:
-                                        print(f"        Found: {clean_name} - {price}")
+                                    try:
+                                        restaurant.add_menu_item(clean_name, price, description, category_name)
+                                        items_found += 1
+                                        
+                                        if self.debug_mode and items_found <= 3:
+                                            print(f"        Found: {clean_name} - {price}")
+                                        
+
+                                            
+                                    except Exception as e:
+                                        if self.debug_mode:
+                                            print(f"          ❌ ERROR adding menu item: {e}")
                                     
                                     # Limit items per category to avoid excessive extraction
                                     if items_found >= 20:
                                         break
                                         
-                        except:
+                        except Exception as item_error:
+                            if self.debug_mode:
+                                print(f"          ❌ Error processing menu item: {item_error}")
                             continue
                             
                 except:

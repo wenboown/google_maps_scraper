@@ -21,7 +21,7 @@ def split_list(a, n):
 
 async def scrape_restaurants_async(restaurant_list, output_folder, thread_id):
     """Async function to scrape restaurants"""
-    scraper = FocusedGoogleMapsScraper(output_folder=output_folder, debug=True)
+    scraper = FocusedGoogleMapsScraper(output_folder=output_folder, debug=False)
     extracted_restaurants = []
     
     try:
