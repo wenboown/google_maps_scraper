@@ -60,8 +60,14 @@ class FocusedGoogleMapsScraper:
             # Navigate and search
             await self._navigate_and_search(page, search_query)
             
-            # Extract basic business information
+            # Extract basic business information from overview page
             await self._extract_basic_info(page, restaurant)
+            
+            # Extract opening hours from overview page
+            await self._extract_opening_hours(page, restaurant)
+            
+            # Navigate to About page and extract detailed information
+            await self._extract_about_info(page, restaurant)
             
             # PRIORITY 1: Extract menu text from Google Maps
             menu_text_found = await self._extract_menu_text_from_maps(page, restaurant)
@@ -133,35 +139,88 @@ class FocusedGoogleMapsScraper:
             except:
                 restaurant.category = ''
             
-            # Phone
+            # Phone - extract from data-item-id attribute
             try:
-                phone_elem = await page.query_selector('[data-item-id="phone"]')
+                phone_elem = await page.query_selector('button[data-item-id*="phone:tel:"]')
                 if phone_elem:
-                    restaurant.phone = await phone_elem.text_content()
-                    if self.debug_mode:
-                        print(f"  ✓ Phone: {restaurant.phone}")
+                    # Extract phone number from data-item-id attribute
+                    data_item_id = await phone_elem.get_attribute('data-item-id')
+                    if data_item_id and 'phone:tel:' in data_item_id:
+                        # Extract the phone number part after 'phone:tel:'
+                        phone_number = data_item_id.split('phone:tel:')[1]
+                        restaurant.phone = phone_number
+                        if self.debug_mode:
+                            print(f"  ✓ Phone: {restaurant.phone}")
             except:
                 restaurant.phone = ''
             
-            # Address
+            # Address - extract from aria-label attribute
             try:
-                address_elem = await page.query_selector('[data-item-id="address"]')
+                address_elem = await page.query_selector('button[data-item-id="address"]')
                 if address_elem:
-                    restaurant.address = await address_elem.text_content()
-                    if self.debug_mode:
-                        print(f"  ✓ Address: {restaurant.address}")
+                    # Extract address from aria-label which contains "Address: full address"
+                    aria_label = await address_elem.get_attribute('aria-label')
+                    if aria_label and aria_label.startswith('Address: '):
+                        restaurant.address = aria_label.replace('Address: ', '').strip()
+                        if self.debug_mode:
+                            print(f"  ✓ Address: {restaurant.address}")
+                    else:
+                        # Fallback to text content
+                        restaurant.address = await address_elem.text_content()
+                        restaurant.address = restaurant.address.strip()
+                        if self.debug_mode:
+                            print(f"  ✓ Address (fallback): {restaurant.address}")
             except:
                 restaurant.address = ''
             
-            # Website
+            # Website - extract from aria-label and href attributes
             try:
-                website_elem = await page.query_selector('[data-item-id="authority"]')
+                website_elem = await page.query_selector('a[data-item-id="authority"]')
                 if website_elem:
-                    restaurant.website = await website_elem.text_content()
+                    # Extract website from aria-label which contains "Website: domain.com"
+                    aria_label = await website_elem.get_attribute('aria-label')
+                    if aria_label and aria_label.startswith('Website: '):
+                        restaurant.website = aria_label.replace('Website: ', '').strip()
+                    else:
+                        # Fallback to href attribute
+                        href = await website_elem.get_attribute('href')
+                        if href:
+                            restaurant.website = href
+                        else:
+                            # Final fallback to text content
+                            restaurant.website = await website_elem.text_content()
+                            restaurant.website = restaurant.website.strip()
+                    
                     if self.debug_mode:
                         print(f"  ✓ Website: {restaurant.website}")
             except:
                 restaurant.website = ''
+            
+            # Menu URL - extract clean URL from menu link
+            try:
+                menu_elem = await page.query_selector('a[data-item-id="menu"]')
+                if menu_elem:
+                    menu_href = await menu_elem.get_attribute('href')
+                    if menu_href:
+                        # Clean up Google redirect URLs
+                        if 'url?q=' in menu_href:
+                            # Extract the actual URL from Google redirect
+                            import urllib.parse
+                            parsed_url = urllib.parse.urlparse(menu_href)
+                            query_params = urllib.parse.parse_qs(parsed_url.query)
+                            if 'q' in query_params:
+                                clean_url = query_params['q'][0]
+                                restaurant.menu_url = clean_url
+                            else:
+                                restaurant.menu_url = menu_href
+                        else:
+                            restaurant.menu_url = menu_href
+                        
+                        restaurant.has_online_menu = True
+                        if self.debug_mode:
+                            print(f"  ✓ Menu URL: {restaurant.menu_url}")
+            except:
+                pass
             
             # Rating
             try:
@@ -176,28 +235,215 @@ class FocusedGoogleMapsScraper:
             except:
                 pass
             
-            # Detect cuisine type
-            if restaurant.category:
-                category_lower = restaurant.category.lower()
-                cuisines = ['chinese', 'italian', 'mexican', 'indian', 'thai', 'japanese', 'french', 'american']
-                for cuisine in cuisines:
-                    if cuisine in category_lower:
-                        restaurant.cuisine_type = cuisine.capitalize()
-                        break
-            
-            # Detect dining options
-            page_content = await page.content()
+            # Detect dining options using structured aria-labels
             dining_options = []
-            if 'dine-in' in page_content.lower() or 'dine in' in page_content.lower():
-                dining_options.append('Dine-in')
-            if 'takeout' in page_content.lower() or 'take-out' in page_content.lower():
-                dining_options.append('Takeout')
-            if 'delivery' in page_content.lower():
-                dining_options.append('Delivery')
+            try:
+                # Look for the "About" region div that contains dining options
+                about_region = await page.query_selector('div[role="region"][aria-label*="About"]')
+                if about_region:
+                    # Find all group divs within the about region that have aria-label
+                    group_divs = await about_region.query_selector_all('div[role="group"][aria-label]')
+                    for group_div in group_divs:
+                        aria_label = await group_div.get_attribute('aria-label')
+                        dining_options.append(aria_label.strip())
+                        
+                        if self.debug_mode:
+                            print(f"  Found dining option aria-label: {aria_label}")
+            except:
+                pass
             restaurant.dining_options = dining_options
             
         except Exception as e:
             print(f"Error extracting basic info: {e}")
+    
+    async def _extract_opening_hours(self, page, restaurant):
+        """Extract opening hours from Google Maps overview page using data-value attributes"""
+        try:
+            if self.debug_mode:
+                print("\n🕐 Extracting opening hours...")
+            
+            opening_hours = {}
+            
+            # Find all "Copy open hours" buttons and extract data-value attributes
+            copy_buttons = await page.query_selector_all('button[data-tooltip="Copy open hours"]')
+            
+            if copy_buttons:
+                for button in copy_buttons:
+                    try:
+                        # Extract the data-value attribute which contains "Day, Hours" format
+                        data_value = await button.get_attribute('data-value')
+                        if data_value:
+                            # Parse the data-value format: "Tuesday, 11 AM–11 PM" or "Monday, Closed"
+                            if ',' in data_value:
+                                day, hours = data_value.split(',', 1)
+                                day = day.strip()
+                                hours = hours.strip()
+                                
+                                # Remove the Unicode character \u202f (narrow no-break space)
+                                hours = hours.replace('\u202f', ' ').replace('\xa0', ' ')
+                                
+                                opening_hours[day] = hours
+                                
+                                if self.debug_mode and len(opening_hours) <= 3:
+                                    print(f"    {day}: {hours}")
+                                    
+                    except Exception as button_error:
+                        if self.debug_mode:
+                            print(f"    Error processing button: {button_error}")
+                        continue
+            
+            # Store the opening hours
+            restaurant.opening_hours = opening_hours
+            
+            if self.debug_mode:
+                if opening_hours:
+                    print(f"  ✓ Found opening hours for {len(opening_hours)} days")
+                else:
+                    print("  ❌ No opening hours found")
+                    
+        except Exception as e:
+            if self.debug_mode:
+                print(f"  ❌ Error extracting opening hours: {e}")
+            restaurant.opening_hours = {}
+    
+    async def _extract_about_info(self, page, restaurant):
+        """Extract detailed information from About page"""
+        try:
+            if self.debug_mode:
+                print("\n📜 Extracting About page information...")
+            
+            about_info = {}
+            
+            # Try to click on About tab/button
+            about_clicked = False
+            about_selectors = [
+                'button:has-text("About")',
+                '[role="tab"]:has-text("About")',
+                'div[role="button"]:has-text("About")'
+            ]
+            
+            for selector in about_selectors:
+                try:
+                    about_elem = await page.query_selector(selector)
+                    if about_elem:
+                        if self.debug_mode:
+                            print("    Found About tab, clicking...")
+                        await about_elem.click()
+                        await page.wait_for_timeout(3000)  # Wait for content to load
+                        about_clicked = True
+                        break
+                except:
+                    continue
+            
+            if not about_clicked:
+                if self.debug_mode:
+                    print("    About tab not found, checking current page for About content...")
+            
+            # Extract About information using aria-label approach
+            # Look for the About container using aria-label
+            about_container = await page.query_selector('div[aria-label*="About"][role="region"]')
+            
+            if about_container:
+                if self.debug_mode:
+                    print("    Found About container using aria-label")
+                
+                # Get all sections that contain h2 and ul elements (more robust than using CSS classes)
+                # Look for divs that have both h2 and ul children - these are the content sections
+                section_divs = await about_container.query_selector_all('div:has(h2):has(ul)')
+                
+                for section_div in section_divs:
+                    try:
+                        # Get the h2 title within this section div
+                        title_elem = await section_div.query_selector('h2')
+                        if not title_elem:
+                            continue
+                            
+                        section_title = await title_elem.text_content()
+                        section_title = section_title.strip()
+                        
+                        if not section_title:
+                            continue
+                        
+                        # Get the ul element within this same section div
+                        ul_elem = await section_div.query_selector('ul')
+                        
+                        if ul_elem:
+                            items = []
+                            # Get all li elements within this ul
+                            li_elements = await ul_elem.query_selector_all('li')
+                            
+                            for li_elem in li_elements:
+                                try:
+                                    # Get the span with aria-label for the clean text
+                                    span_elem = await li_elem.query_selector('span[aria-label]')
+                                    if span_elem:
+                                        item_text = await span_elem.get_attribute('aria-label')
+                                        if item_text:
+                                            # Determine if available based on visual indicators
+                                            # Look for negative styling classes on the div container
+                                            # div_elem = await li_elem.query_selector('div.iNvpkb')
+                                            # is_available = True
+                                            # if div_elem:
+                                            #     class_list = await div_elem.get_attribute('class')
+                                            #     # XJynsc typically indicates "not available" styling
+                                            #     if class_list and 'XJynsc' in class_list:
+                                            #         is_available = False
+                                            
+                                            items.append(item_text.strip())
+                                except Exception as item_error:
+                                    continue
+                            
+                            if items:
+                                about_info[section_title] = items
+                                
+                                if self.debug_mode and len(about_info) <= 3:
+                                    print(f"    {section_title}: {len(items)} items")
+                        
+                    except Exception as section_error:
+                        continue
+
+            # Also look for the main description paragraph using more generic selectors
+            description_found = False
+            
+            # Try multiple approaches to find the restaurant description
+            description_selectors = [
+                'div[role="region"] p span',  # Description in about region
+                'div.PbZDve p span',          # Original selector
+                'p:has(span)',                # Any paragraph with span
+            ]
+            
+            for selector in description_selectors:
+                if description_found:
+                    break
+                try:
+                    description_elems = await page.query_selector_all(selector)
+                    for elem in description_elems:
+                        try:
+                            description = await elem.text_content()
+                            if description and len(description) > 50:  # Meaningful description
+                                about_info['Description'] = description.strip()
+                                description_found = True
+                                if self.debug_mode:
+                                    print(f"    Found description: {description[:100]}...")
+                                break
+                        except:
+                            continue
+                except:
+                    continue
+            
+            # Store the about information
+            restaurant.about = about_info
+            
+            if self.debug_mode:
+                if about_info:
+                    print(f"  ✓ Found {len(about_info)} About sections")
+                else:
+                    print("  ❌ No About information found")
+                    
+        except Exception as e:
+            if self.debug_mode:
+                print(f"  ❌ Error extracting About info: {e}")
+            restaurant.about = {}
     
     async def _extract_menu_text_from_maps(self, page, restaurant):
         """PRIORITY 1: Extract menu text directly from Google Maps"""
@@ -856,19 +1102,40 @@ async def test_focused_scraper():
             print("Failed to initialize browser")
             return
         
-        search_query = "Szechuan Royale, 470 Schooleys Mountain Rd #3, Hackettstown, NJ 07840"
+        search_query = "Szechuan Royale NJ 07840"
         restaurant = await scraper.extract_restaurant_data(search_query)
         
         if restaurant:
             print(f"\n🎉 FINAL RESULTS:")
             print(f"=" * 60)
             print(f"Restaurant: {restaurant.name}")
-            print(f"Category: {restaurant.category} ({restaurant.cuisine_type})")
+            print(f"Category: {restaurant.category}")
             print(f"Phone: {restaurant.phone}")
             print(f"Address: {restaurant.address}")
             print(f"Website: {restaurant.website}")
             print(f"Rating: {restaurant.rating}")
             print(f"Dining Options: {restaurant.dining_options}")
+            
+            # Display opening hours
+            if hasattr(restaurant, 'opening_hours') and restaurant.opening_hours:
+                print(f"\n🕐 OPENING HOURS:")
+                for day, hours in restaurant.opening_hours.items():
+                    print(f"  {day}: {hours}")
+            
+            # Display about information
+            if hasattr(restaurant, 'about') and restaurant.about:
+                print(f"\n📜 ABOUT INFORMATION:")
+                for section, items in restaurant.about.items():
+                    if isinstance(items, list):
+                        print(f"  {section}:")
+                        for item in items[:5]:  # Show first 5 items
+                            status = "✓" if item.get('available', True) else "❌"
+                            print(f"    {status} {item['text']}")
+                        if len(items) > 5:
+                            print(f"    ... and {len(items) - 5} more")
+                    else:
+                        print(f"  {section}: {items}")
+                print()
             
             print(f"\n📊 MENU DATA EXTRACTION RESULTS:")
             print(f"Menu text items found: {len(restaurant.menu_items)}")

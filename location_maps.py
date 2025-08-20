@@ -22,7 +22,7 @@ class RestaurantMaps(LocationMaps):
         super().__init__()
         # Additional restaurant-specific fields
         self.price_range = ''  # $, $$, $$$, $$$$
-        self.cuisine_type = ''  # Italian, Mexican, etc.
+        # self.cuisine_type = ''  # Italian, Mexican, etc.
         self.dining_options = []  # Dine-in, Takeout, Delivery
         self.amenities = []  # WiFi, Parking, etc.
         self.popular_times = ''  # Peak hours info
@@ -34,6 +34,11 @@ class RestaurantMaps(LocationMaps):
         self.has_menu_photos = False
         self.menu_photo_urls = []  # List of menu photo URLs and info
         self.external_links = []  # External links for backup
+        # Opening hours: Dictionary of day -> hours (e.g., {"Monday": "11 AM–11 PM", "Tuesday": "Closed"})
+        self.opening_hours = {}
+        # About information: Dictionary with sections and their items
+        # Format: {"section_name": [{"text": "item text", "available": True/False}], "Description": "restaurant description"}
+        self.about = {}
         
     def add_menu_item(self, name, price='', description='', section=''):
         """Add a menu item to the restaurant"""
