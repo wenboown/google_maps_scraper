@@ -70,7 +70,7 @@ def scrape_restaurants_sync(restaurant_list, output_folder, results, thread_id):
         results[thread_id] = []
 
 
-def main_focused_scraper(keywords_file, output_folder, num_threads=2, output_format='json'):
+def main_focused_scraper(keywords_file, output_folder, num_threads=2, output_format='json', single_file=False):
     """Main function for focused restaurant scraping"""
     
     # Read keywords file
@@ -90,6 +90,7 @@ def main_focused_scraper(keywords_file, output_folder, num_threads=2, output_for
     print(f"Restaurants to process: {len(search_queries)}")
     print(f"Threads: {num_threads}")
     print(f"Output folder: {output_folder}")
+    print(f"Export mode: {'Single file per restaurant' if not single_file else 'All restaurants in one file'}")
     print(f"Strategy: 1) Google Maps text → 2) Menu photos → 3) External links")
     print("=" * 60)
     
@@ -132,27 +133,47 @@ def main_focused_scraper(keywords_file, output_folder, num_threads=2, output_for
     exporter = RestaurantDataExporter(output_folder, all_restaurants)
     
     # Export based on format selection
-    generated_files = []
+    generated_files = {}
     
     if output_format == 'json' or output_format == 'all':
-        json_file = exporter.export_to_json()  # Use auto-generated filename
-        generated_files.append(f"- JSON: {json_file}")
+        json_files = exporter.export_to_json(single_file=single_file)
+        generated_files['JSON'] = json_files if isinstance(json_files, list) else [json_files]
     
     if output_format == 'csv' or output_format == 'all':
-        csv_file = exporter.export_to_csv()  # Use auto-generated filename
-        generated_files.append(f"- CSV: {csv_file}")
+        csv_files = exporter.export_to_csv(single_file=single_file)
+        generated_files['CSV'] = csv_files if isinstance(csv_files, list) else [csv_files]
     
     if output_format == 'excel' or output_format == 'all':
-        excel_file = exporter.export_to_excel()  # Use auto-generated filename
-        generated_files.append(f"- Excel: {excel_file}")
+        excel_files = exporter.export_to_excel(single_file=single_file)
+        generated_files['Excel'] = excel_files if isinstance(excel_files, list) else [excel_files]
     
     # Print detailed summary
     print_extraction_summary(all_restaurants)
     
-    print(f"\n📁 FILES GENERATED:")
-    for file_info in generated_files:
-        print(file_info)
+    # Print files generated
+    if single_file:
+        print(f"\n📁 FILES GENERATED (All restaurants in single files):")
+        total_files = 0
+        for format_name, file_list in generated_files.items():
+            for filepath in file_list:
+                filename = os.path.basename(filepath)
+                print(f"- {format_name}: {filename}")
+                total_files += 1
+    else:
+        print(f"\n📁 FILES GENERATED (One file per restaurant):")
+        total_files = 0
+        for format_name, file_list in generated_files.items():
+            print(f"- {format_name}: {len(file_list)} files")
+            total_files += len(file_list)
+            # Show first few filenames as examples
+            for i, filepath in enumerate(file_list[:3]):
+                filename = os.path.basename(filepath)
+                print(f"  └─ {filename}")
+            if len(file_list) > 3:
+                print(f"  └─ ... and {len(file_list) - 3} more files")
+    
     print(f"- Menu Photos: {os.path.join(output_folder, 'menu_photos')}")
+    print(f"\n🎯 Total files created: {total_files} restaurant files")
 
 
 def print_extraction_summary(restaurants):
@@ -240,6 +261,12 @@ def parse_arguments():
         help='Output format (default: json)'
     )
     
+    parser.add_argument(
+        '--single-file',
+        action='store_true',
+        help='Export all restaurants to single files instead of one file per restaurant (default: one file per restaurant)'
+    )
+    
     return parser.parse_args()
 
 
@@ -268,10 +295,11 @@ def main():
     print(f"- Output folder: {output_folder}")
     print(f"- Threads: {args.threads}")
     print(f"- Output format: {args.format}")
+    print(f"- Export mode: {'Single file per restaurant' if not args.single_file else 'All restaurants in one file'}")
     print()
     
     # Start extraction
-    main_focused_scraper(args.input, output_folder, args.threads, args.format)
+    main_focused_scraper(args.input, output_folder, args.threads, args.format, args.single_file)
 
 
 if __name__ == "__main__":
