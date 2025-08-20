@@ -3,6 +3,7 @@
 import xlwt
 import json
 import csv
+import re
 from datetime import datetime
 
 
@@ -14,10 +15,75 @@ class RestaurantDataExporter:
         self.restaurants_list = restaurants_list
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
+    def _extract_zipcode(self, address):
+        """Extract zipcode from address string"""
+        if not address:
+            return "00000"
+        
+        # Look for 5-digit zipcode (optionally followed by 4-digit extension)
+        zipcode_match = re.search(r'\b(\d{5})(?:-\d{4})?\b', address)
+        if zipcode_match:
+            return zipcode_match.group(1)
+        
+        # Fallback for 3-4 digit postal codes (but only if they look like postal codes)
+        # Look for patterns at the end of the address
+        end_match = re.search(r'\b(\d{3,4})\s*$', address)
+        if end_match:
+            return end_match.group(1).zfill(5)  # Pad with zeros to 5 digits
+        
+        # If no numeric postal code found, return default
+        return "00000"
+    
+    def _sanitize_filename(self, filename):
+        """Sanitize filename by removing invalid characters"""
+        # Handle common cases first
+        filename = filename.replace("'s", "s")  # McDonald's -> McDonalds
+        filename = filename.replace("'", "")    # Remove other apostrophes
+        
+        # Remove or replace invalid filename characters
+        filename = re.sub(r'[<>:"/\\|?*]', '', filename)
+        # Replace spaces and other characters with underscores
+        filename = re.sub(r'[^\w\-_.]', '_', filename)
+        # Remove multiple consecutive underscores
+        filename = re.sub(r'_+', '_', filename)
+        # Remove leading/trailing underscores and limit length
+        filename = filename.strip('_')[:50]
+        return filename
+    
+    def _generate_filename_base(self):
+        """Generate a base filename using restaurant names and zipcodes"""
+        if not self.restaurants_list:
+            return f"restaurants_{self.timestamp}"
+        
+        if len(self.restaurants_list) == 1:
+            # Single restaurant - use name and zipcode
+            restaurant = self.restaurants_list[0]
+            name = restaurant.name or "restaurant"
+            zipcode = self._extract_zipcode(restaurant.address)
+            base = f"{name}_{zipcode}"
+        else:
+            # Multiple restaurants - use first and last restaurant info
+            first_restaurant = self.restaurants_list[0]
+            last_restaurant = self.restaurants_list[-1]
+            
+            first_name = (first_restaurant.name or "restaurant").split()[0]  # First word only
+            first_zip = self._extract_zipcode(first_restaurant.address)
+            
+            last_name = (last_restaurant.name or "restaurant").split()[0]  # First word only  
+            last_zip = self._extract_zipcode(last_restaurant.address)
+            
+            if first_zip == last_zip:
+                base = f"{first_name}_to_{last_name}_{first_zip}"
+            else:
+                base = f"{first_name}_{first_zip}_to_{last_name}_{last_zip}"
+        
+        return self._sanitize_filename(base)
+    
     def export_to_excel(self, filename=None):
         """Export restaurant data to Excel format"""
         if filename is None:
-            filename = f"restaurant_data_{self.timestamp}.xls"
+            base_name = self._generate_filename_base()
+            filename = f"{base_name}.xls"
         
         filepath = f"{self.output_folder}{filename}"
         
@@ -125,7 +191,8 @@ class RestaurantDataExporter:
     def export_to_csv(self, filename=None):
         """Export restaurant data to CSV format"""
         if filename is None:
-            filename = f"restaurant_data_{self.timestamp}.csv"
+            base_name = self._generate_filename_base()
+            filename = f"{base_name}.csv"
         
         filepath = f"{self.output_folder}{filename}"
         
@@ -174,7 +241,8 @@ class RestaurantDataExporter:
     def export_to_json(self, filename=None):
         """Export restaurant data to JSON format"""
         if filename is None:
-            filename = f"restaurant_data_{self.timestamp}.json"
+            base_name = self._generate_filename_base()
+            filename = f"{base_name}.json"
         
         filepath = f"{self.output_folder}{filename}"
         
@@ -213,7 +281,8 @@ class RestaurantDataExporter:
     def export_menu_summary(self, filename=None):
         """Export a summary of menu items across all restaurants"""
         if filename is None:
-            filename = f"menu_summary_{self.timestamp}.csv"
+            base_name = self._generate_filename_base()
+            filename = f"{base_name}_menu_summary.csv"
         
         filepath = f"{self.output_folder}{filename}"
         

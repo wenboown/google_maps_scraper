@@ -135,15 +135,15 @@ def main_focused_scraper(keywords_file, output_folder, num_threads=2, output_for
     generated_files = []
     
     if output_format == 'json' or output_format == 'all':
-        json_file = exporter.export_to_json("focused_extraction_results.json")
+        json_file = exporter.export_to_json()  # Use auto-generated filename
         generated_files.append(f"- JSON: {json_file}")
     
     if output_format == 'csv' or output_format == 'all':
-        csv_file = exporter.export_to_csv("focused_extraction_results.csv")
+        csv_file = exporter.export_to_csv()  # Use auto-generated filename
         generated_files.append(f"- CSV: {csv_file}")
     
     if output_format == 'excel' or output_format == 'all':
-        excel_file = exporter.export_to_excel("focused_extraction_results.xls")
+        excel_file = exporter.export_to_excel()  # Use auto-generated filename
         generated_files.append(f"- Excel: {excel_file}")
     
     # Print detailed summary
