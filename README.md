@@ -41,18 +41,25 @@ The scraper follows a three-tier priority system:
    # Install dependencies first
    uv sync
 
-   # Then run
+   # Basic usage (uses input.txt, creates JSON output)
    uv run python main.py
+
+   # With custom options
+   uv run python main.py -i my_restaurants.txt -f excel -t 3
+
+   # See all options
+   uv run python main.py -h
    ```
 
-3. **Follow the prompts**:
-   - **[1] Restaurant keywords file**: Provide a .txt file with restaurant queries (one per line)
-   - **[2] Output folder**: Specify where to save results (default: `./output/`)
-   - **[3] Number of threads**: Choose 1-3 parallel threads (default: 2)
+3. **Command Line Options**:
+   - `-i/--input`: Input file with restaurant queries (default: `input.txt`)
+   - `-o/--output`: Output folder for results (default: `./output/`)
+   - `-t/--threads`: Number of parallel threads 1-3 (default: 2)
+   - `-f/--format`: Output format - `json`, `csv`, `excel`, or `all` (default: `json`)
 
 ### Sample Input Format
 
-Create a text file (e.g., `restaurants.txt`) with restaurant queries:
+Create an input file (default: `input.txt`) with restaurant queries (one per line):
 ```
 Szechuan Royale, 470 Schooleys Mountain Rd #3, Hackettstown, NJ 07840
 Pizza Hut Times Square New York
@@ -60,13 +67,35 @@ McDonald's 42nd Street Manhattan
 Olive Garden Brooklyn NY
 ```
 
+**Note**: If `input.txt` doesn't exist, the script will automatically create a sample file with example restaurants and provide instructions.
+
+### Usage Examples
+
+```bash
+# Basic usage - uses input.txt, outputs JSON
+python main.py
+
+# Custom input file with Excel output
+python main.py -i my_restaurants.txt -f excel
+
+# All output formats with 3 threads
+python main.py -i restaurants.txt -f all -t 3
+
+# Custom output directory
+python main.py -o ./my_results/ -f csv
+
+# Get help and see all options
+python main.py --help
+```
+
 ### Output Files
 
-The scraper generates:
+The scraper generates files based on the selected format (`-f/--format`):
+- **JSON file** (default): `focused_extraction_results.json` - Complete data in JSON format
 - **Excel file**: `focused_extraction_results.xls` - Full restaurant data with menu items
-- **CSV file**: `focused_extraction_results.csv` - Structured data export  
-- **JSON file**: `focused_extraction_results.json` - Complete data in JSON format
-- **Menu photos**: Downloaded to `menu_photos/` folder for OCR processing
+- **CSV file**: `focused_extraction_results.csv` - Structured data export
+- **All formats**: Use `-f all` to generate all three formats
+- **Menu photos**: Always downloaded to `menu_photos/` folder for OCR processing
 
 ## Development Setup
 
@@ -87,6 +116,9 @@ uv run playwright install chromium
 
 # Run the scraper
 uv run python main.py
+
+# Or with custom options
+uv run python main.py -i restaurants.txt -f excel -t 3
 ```
 
 ### Project Structure
@@ -94,7 +126,7 @@ uv run python main.py
 ```
 google_maps_scraper/
 ├── focused_google_maps_scraper.py    # Main scraper logic (Playwright-based)
-├── main.py                           # Interactive entry point
+├── main.py                           # Command-line entry point
 ├── location_maps.py                  # Data models for restaurants
 ├── restaurant_exporter.py            # Multi-format data export
 ├── pyproject.toml                    # Modern Python project configuration
@@ -108,39 +140,3 @@ google_maps_scraper/
 - **`FocusedGoogleMapsScraper`**: Main scraper class with prioritized extraction
 - **`RestaurantMaps`**: Data model for restaurant information and menu items
 - **`RestaurantDataExporter`**: Handles Excel, CSV, and JSON export formats
-
-### Alternative Setup (Traditional)
-
-If you prefer traditional Python virtual environments:
-
-```bash
-# Create virtual environment
-python -m venv .venv
-
-# Activate (Linux/macOS)
-source .venv/bin/activate
-# Activate (Windows)
-.venv\Scripts\activate
-
-# Install dependencies
-pip install playwright requests xlwt
-
-# Install browsers
-playwright install chromium
-
-# Run scraper
-python main.py
-```
-
-## Tutorial article and video
-
-For any doubts about how to use the program, you can read the article of our web or see the demo video.
-
-- Explanatory article: https://juaristech.com/google-maps-scraper
-- Demo video: https://youtu.be/XX-u-eNkRFs
-
-## Contact
-
-- Website: [JuarisTech](https://juaristech.com/)
-- Email: admin@juaristech.com
-

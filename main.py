@@ -5,6 +5,7 @@ Production main script using the focused Google Maps scraper
 Priority: 1) Text from Google Maps, 2) Menu photos for OCR, 3) External links
 """
 
+import argparse
 import asyncio
 import os
 import sys
@@ -69,7 +70,7 @@ def scrape_restaurants_sync(restaurant_list, output_folder, results, thread_id):
         results[thread_id] = []
 
 
-def main_focused_scraper(keywords_file, output_folder, num_threads=2):
+def main_focused_scraper(keywords_file, output_folder, num_threads=2, output_format='json'):
     """Main function for focused restaurant scraping"""
     
     # Read keywords file
@@ -130,18 +131,27 @@ def main_focused_scraper(keywords_file, output_folder, num_threads=2):
     # Export data using enhanced exporter
     exporter = RestaurantDataExporter(output_folder, all_restaurants)
     
-    # Export in multiple formats
-    excel_file = exporter.export_to_excel("focused_extraction_results.xls")
-    csv_file = exporter.export_to_csv("focused_extraction_results.csv")
-    json_file = exporter.export_to_json("focused_extraction_results.json")
+    # Export based on format selection
+    generated_files = []
+    
+    if output_format == 'json' or output_format == 'all':
+        json_file = exporter.export_to_json("focused_extraction_results.json")
+        generated_files.append(f"- JSON: {json_file}")
+    
+    if output_format == 'csv' or output_format == 'all':
+        csv_file = exporter.export_to_csv("focused_extraction_results.csv")
+        generated_files.append(f"- CSV: {csv_file}")
+    
+    if output_format == 'excel' or output_format == 'all':
+        excel_file = exporter.export_to_excel("focused_extraction_results.xls")
+        generated_files.append(f"- Excel: {excel_file}")
     
     # Print detailed summary
     print_extraction_summary(all_restaurants)
     
     print(f"\n📁 FILES GENERATED:")
-    print(f"- Excel: {excel_file}")
-    print(f"- CSV: {csv_file}")
-    print(f"- JSON: {json_file}")
+    for file_info in generated_files:
+        print(file_info)
     print(f"- Menu Photos: {os.path.join(output_folder, 'menu_photos')}")
 
 
@@ -176,79 +186,92 @@ def print_extraction_summary(restaurants):
     print(f"  (restaurants with at least one form of menu data)")
 
 
-def validate_input(prompt, validation_func, error_msg):
-    """Helper function to validate user input"""
-    while True:
-        user_input = input(prompt)
-        if validation_func(user_input):
-            return user_input
-        else:
-            print(error_msg)
 
-
-def create_sample_file():
+def create_sample_file(filename="sample_input.txt"):
     """Create a sample keywords file"""
     sample_keywords = [
-        "Szechuan Royale, 470 Schooleys Mountain Rd #3, Hackettstown, NJ 07840",
         "Pizza Hut Times Square New York",
         "McDonald's 42nd Street Manhattan",
         "Olive Garden Brooklyn NY",
         "Chipotle Mexican Grill Union Square NYC"
     ]
     
-    with open("sample_focused_restaurants.txt", 'w', encoding='utf-8') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
         f.write('\n'.join(sample_keywords))
     
-    print(f"Sample keywords file created: sample_focused_restaurants.txt")
-    return "sample_focused_restaurants.txt"
+    print(f"Sample keywords file created: {filename}")
+    print(f"Please edit '{filename}' with your restaurant search queries (one per line)")
+    print("Each line should contain restaurant name and location for best results")
+    return filename
+
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="🏪 FOCUSED GOOGLE MAPS RESTAURANT SCRAPER\nStrategy: Text → Photos → External Links",
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    parser.add_argument(
+        '-i', '--input',
+        default='input.txt',
+        help='Input file containing restaurant search queries (default: input.txt)'
+    )
+    
+    parser.add_argument(
+        '-o', '--output',
+        default='./output/',
+        help='Output folder for results (default: ./output/)'
+    )
+    
+    parser.add_argument(
+        '-t', '--threads',
+        type=int,
+        default=2,
+        choices=range(1, 4),
+        metavar='{1,2,3}',
+        help='Number of parallel threads (1-3, default: 2)'
+    )
+    
+    parser.add_argument(
+        '-f', '--format',
+        choices=['json', 'csv', 'excel', 'all'],
+        default='json',
+        help='Output format (default: json)'
+    )
+    
+    return parser.parse_args()
 
 
 def main():
-    """Interactive main function"""
+    """Main function with argparse"""
+    args = parse_arguments()
+    
     print("🏪 FOCUSED GOOGLE MAPS RESTAURANT SCRAPER")
     print("Strategy: Text → Photos → External Links")
     print("=" * 60)
     
-    # Keywords file
-    keywords_file = validate_input(
-        '\n[1] Restaurant keywords file (.txt) or "sample" to create example: ',
-        lambda x: x == "sample" or (os.path.isfile(x) and x.lower().endswith('.txt')),
-        "** Error ** File not found or not a .txt file (or type 'sample')"
-    )
-    
-    if keywords_file == "sample":
-        keywords_file = create_sample_file()
-    
-    # Output folder
-    output_folder = input('[2] Output folder (default: ./output/): ').strip()
-    if not output_folder:
-        output_folder = './output/'
+    # Handle input file
+    if not os.path.isfile(args.input):
+        print(f"Input file '{args.input}' not found.")
+        create_sample_file(args.input)
+        print(f"\nPlease run the script again after editing sample file '{args.input}'")
+        return
     
     # Ensure output folder ends with separator
+    output_folder = args.output
     if not output_folder.endswith(os.sep):
         output_folder += os.sep
     
-    # Number of threads (fewer for async operations)
-    num_threads = input('[3] Number of parallel threads (1-3, default 2): ').strip()
-    try:
-        num_threads = int(num_threads) if num_threads else 2
-        if not 1 <= num_threads <= 3:
-            num_threads = 2
-    except:
-        num_threads = 2
-    
     print(f"\nConfiguration:")
-    print(f"- Keywords file: {keywords_file}")
+    print(f"- Input file: {args.input}")
     print(f"- Output folder: {output_folder}")
-    print(f"- Threads: {num_threads}")
-    
-    confirmation = input("\nStart extraction? (y/n): ")
-    if confirmation.lower() != 'y':
-        print("Extraction cancelled")
-        return
+    print(f"- Threads: {args.threads}")
+    print(f"- Output format: {args.format}")
+    print()
     
     # Start extraction
-    main_focused_scraper(keywords_file, output_folder, num_threads)
+    main_focused_scraper(args.input, output_folder, args.threads, args.format)
 
 
 if __name__ == "__main__":
